@@ -1,0 +1,58 @@
+#include "ripes_system.h" 
+
+volatile int * LEDMat = LED_MATRIX_0_BASE;
+volatile int * Switches = SWITCHES_0_BASE;
+volatile int * DPadUp = D_PAD_0_UP;
+volatile int * DPadDo = D_PAD_0_DOWN;
+volatile int * DPadLe = D_PAD_0_LEFT;
+volatile int * DPadRi = D_PAD_0_RIGHT;
+
+#define X LED_MATRIX_0_WIDTH
+#define Y LED_MATRIX_0_HEIGHT
+
+int main()
+{
+    while (1)
+    {
+        int pos_x = 0;
+        int pos_y = 0;
+        int game_over = 0;
+        
+        LEDMat = LED_MATRIX_0_BASE;
+
+        LEDMat[pos_y * X + pos_x] = 0xFF0000;
+
+        while (!game_over)
+        {
+            LEDMat[pos_y * X + pos_x] = 0x00;
+
+            if (*DPadUp) {
+                if (pos_y > 0) pos_y--;
+                else game_over = 1;
+            }
+            else if (*DPadDo) {
+                if (pos_y < Y - 1) pos_y++;
+                else game_over = 1;
+            }
+            else if (*DPadLe) {
+                if (pos_x > 0) pos_x--;
+                else game_over = 1;
+            }
+            else if (*DPadRi) {
+                if (pos_x < X - 1) pos_x++;
+                else game_over = 1;
+            }
+
+            LEDMat[pos_y * X + pos_x] = 0xFF0000;
+
+            for (int i = 0; i < 4000; i++);
+        }
+
+        for (int i = 0; i < X * Y; i++)
+            LEDMat[i] = 0;
+
+        for (int i = 0; i < 10000; i++);
+    }
+
+    return 0;
+}
