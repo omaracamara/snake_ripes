@@ -1,0 +1,83 @@
+#include "ripes_system.h" 
+
+volatile int *LEDMat   = LED_MATRIX_0_BASE;
+volatile int *Switches = SWITCHES_0_BASE;
+volatile int *DPadUp   = D_PAD_0_UP;
+volatile int *DPadDo   = D_PAD_0_DOWN;
+volatile int *DPadLe   = D_PAD_0_LEFT;
+volatile int *DPadRi   = D_PAD_0_RIGHT;
+
+int apple_x = 0;
+int apple_y = 0;
+
+#define X LED_MATRIX_0_WIDTH
+#define Y LED_MATRIX_0_HEIGHT
+
+#define RED   0xFF0000
+#define BLACK 0x000000
+#define GREEN 0x00FF00
+
+void draw_block(int x, int y, int color) {
+    LEDMat[y * X + x] = color;
+    LEDMat[y * X + (x + 1)] = color;
+    LEDMat[(y + 1) * X + x] = color;
+    LEDMat[(y + 1) * X + (x + 1)] = color;
+}
+
+void draw_apple(){
+    srand(*DPadUp + *DPadDo + *DPadLe + *DPadRi);
+    apple_x = rand() % (X - 1);
+    apple_y = rand() % (Y - 1);
+    draw_block(apple_x, apple_y, GREEN);
+}
+
+int main() {
+    int COLOR = 0x000000;
+    while (1) {
+        
+        int pos_x = 5;
+        int pos_y = 5;
+        int game_over = 0;
+
+        draw_block(pos_x, pos_y, RED);   // Serpiente inicial
+        draw_apple(); 
+
+        while (!game_over){
+            
+            draw_block(pos_x, pos_y, COLOR);
+            
+            // Movimiento con l?mites
+            
+            if (*DPadUp) {
+                if (pos_y > 0) pos_y--;
+                else game_over = 1;
+            }
+            else if (*DPadDo) {
+                if (pos_y < Y - 2) pos_y++;   // Y-2 porque es bloque de 2
+                else game_over = 1;
+            }
+            else if (*DPadLe) {
+                if (pos_x > 0) pos_x--;
+                else game_over = 1;
+            }
+            else if (*DPadRi) {
+                if (pos_x < X - 2) pos_x++;   // X-2 por el bloque
+                else game_over = 1;
+            }
+
+            // Dibujar el bloque nuevo
+            if (!game_over){
+                draw_block(pos_x, pos_y, RED);
+                COLOR = 0x000000;
+            }
+            
+            for (int i = 0; i < 4000; i++);
+        
+        }
+        draw_block(pos_x, pos_y, BLACK); 
+        // Peque?o delay antes de reiniciar
+        for (int i = 0; i < 4000; i++);
+    }
+
+    return 0;
+}
