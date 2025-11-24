@@ -16,6 +16,10 @@
 #define DPAD_LEFT   ((volatile int *)0xF0000DB8)
 #define DPAD_RIGHT  ((volatile int *)0xF0000DBC)
 
+// Snake array
+int snake_x[100];
+int snake_y[100];
+
 void SetBorders(int white){
 
     int bottom_row_start = (LED_MATRIX_HEIGHT - 1) * LED_MATRIX_WIDTH;
@@ -40,22 +44,33 @@ void SetBorders(int white){
     }
 }
 
-void _start() {
+void SetApple(int red){
 
-    // LED Matrix
-    int current_x = 7;
-    int current_y = 12;
+    int x_coordinate = 15;
+    int y_coordinate = 15;
+
+    int start_offset = (x_coordinate * LED_MATRIX_WIDTH + y_coordinate) * PIXEL_SIZE_BYTES;
+    *((volatile int *)((char *)LED_PTR + start_offset)) = red;
+}
+
+void _start() {
 
     // HEX colors
     int green = 0x00FF00;
     int black = 0x000000;
     int white = 0xFFFFFF;
+    int red   = 0xFF0000;
 
-    SetBorders(white);
+    // Initial snake setup
+    int length = 1;
+    snake_x[0] = 17; // Head x
+    snake_y[0] = 12; // Head y
 
-    // initial position
-    int start_offset = (current_y * LED_MATRIX_WIDTH + current_x) * PIXEL_SIZE_BYTES;
+    // Draw initial position
+    int start_offset = (snake_y[0] * LED_MATRIX_WIDTH + snake_x[0]) * PIXEL_SIZE_BYTES;
     *((volatile int *)((char *)LED_PTR + start_offset)) = green;
+
+    SetApple(red);
 
     // Loop forever
     while(1){
@@ -73,25 +88,48 @@ void _start() {
         if(dx != 0 || dy != 0){
 
             // Calculate next position
-            int next_x = current_x + dx;
-            int next_y = current_y + dy;
+            int next_x = snake_x[0] + dx;
+            int next_y = snake_y[0] + dy;
 
             // Calculate Address of next pixel
             int next_offset = (next_y * LED_MATRIX_WIDTH + next_x) * PIXEL_SIZE_BYTES;
             volatile int * next_ptr = (volatile int * )((char*)LED_PTR + next_offset);
 
-            // Check Colition
-            if(*next_ptr != white){
+            // Next color
+            int next_color = *next_ptr;
 
-                // Erease trail
-                int old_offset = (current_y * LED_MATRIX_WIDTH + current_x) * PIXEL_SIZE_BYTES;
-                *((volatile int *)((char *)LED_PTR + old_offset)) = black;
+            // Check Colition
+            if(next_color != white){
+
+                // Check Apple
+                int grow = 0;
+                if(next_color == red){
+                    grow = 1;
+                    length++;
+                }
+
+                // If didnt grow erease trail
+                if(grow == 0){
+                    int tail_x = snake_x[length - 1];
+                    int tail_y = snake_y[length - 1];
+
+                     // Erease trail
+                    int tail_offset = (tail_y * LED_MATRIX_WIDTH + tail_x) * PIXEL_SIZE_BYTES;
+                    *((volatile int *)((char *)LED_PTR + tail_offset)) = black;
+                }
+
+                // Shift snake
+                for(int i = length - 1; i > 0; i--){
+                    snake_x[i] = snake_x[i-1];
+                    snake_y[i] = snake_y[i-1];
+                }
+
 
                 // Update coordinate
-                current_x = next_x;
-                current_y = next_y;
+                snake_x[0] = next_x;
+                snake_y[0] = next_y;
 
-                // Draw character
+                // Draw snake
                 *next_ptr = green;
             }
 
