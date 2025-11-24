@@ -52,26 +52,37 @@ void _start() {
 
     SetBorders(white);
 
+    int start_offset = (current_y * LED_MATRIX_WIDTH + current_x) * PIXEL_SIZE_BYTES;
+    *((volatile int *)((char *)LED_PTR + start_offset)) = green;
+
     // Loop forever
     while(1){
 
         if(*DPAD_RIGHT != 0){
 
-            // Calculate Old Offest
-            int old_offset = (current_y * LED_MATRIX_WIDTH + current_x) * PIXEL_SIZE_BYTES;
-            volatile int * old_ptr = (volatile int * )((char*)LED_PTR + old_offset);
-            *old_ptr = black;
+            // Calculate next position
+            int next_x = current_x + 1;
+            int next_y = current_y;
 
-            current_x++;
+            // Calculate Address of next pixel
+            int next_offset = (next_y * LED_MATRIX_WIDTH + next_x) * PIXEL_SIZE_BYTES;
+            volatile int * next_ptr = (volatile int * )((char*)LED_PTR + next_offset);
 
-            // Calculate Offset
-            int offset_bytes = (current_y * LED_MATRIX_WIDTH + current_x) * PIXEL_SIZE_BYTES;
+            // Read pixel color
+            int pixel_color = *next_ptr;
 
-            // Calculate Address
-            volatile int * target_ptr = (volatile int *)((char *)LED_PTR + offset_bytes);
+            // If its not white = safe
+            if(pixel_color != white){
 
-            // Write color on target address
-            *target_ptr = green;
+                // Erease trail
+                int old_offset = (current_y * LED_MATRIX_WIDTH + current_x) * PIXEL_SIZE_BYTES;
+                *((volatile int *)((char *)LED_PTR + old_offset)) = black;
+
+                // Update coordinate
+                current_x = next_x;
+
+                *next_ptr = green;
+            }
 
             // Debouncing
             while(*DPAD_RIGHT != 0){
