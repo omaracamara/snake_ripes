@@ -1,0 +1,153 @@
+#include "ripes_system.h"
+
+volatile int *LEDMat   = LED_MATRIX_0_BASE;
+volatile int *Switches = SWITCHES_0_BASE;
+volatile int *DPadUp   = D_PAD_0_UP;
+volatile int *DPadDo   = D_PAD_0_DOWN;
+volatile int *DPadLe   = D_PAD_0_LEFT;
+volatile int *DPadRi   = D_PAD_0_RIGHT;
+
+#define X LED_MATRIX_0_WIDTH
+#define Y LED_MATRIX_0_HEIGHT
+
+#define RED   0xFF0000
+#define BLACK 0x000000
+#define GREEN 0x00FF00
+#define BLUE  0x0000FF
+
+#define MAX_TAIL 200
+
+int tail_x[MAX_TAIL];
+int tail_y[MAX_TAIL];
+int length = 0;
+
+int apple_x = 0;
+int apple_y = 0;
+
+void draw_block(int x, int y, int color) {
+    if (x < 0 || x + 1 >= X) return;
+    if (y < 0 || y + 1 >= Y) return;
+
+    LEDMat[y * X + x] = color;
+    LEDMat[y * X + (x + 1)] = color;
+    LEDMat[(y + 1) * X + x] = color;
+    LEDMat[(y + 1) * X + (x + 1)] = color;
+}
+
+void clear_screen() {
+    for (int i = 0; i < X * Y; i++)
+        LEDMat[i] = BLACK;
+}
+
+void clear_apple() {
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++)
+            LEDMat[(apple_y + j) * X + (apple_x + i)] = BLACK;
+}
+
+void spawn_apple() {
+    clear_apple();
+
+    static unsigned int seed = 1234567;
+    seed = seed * 1103515245 + 12345;
+
+    apple_x = ((seed >> 8) % (X - 2));
+    apple_y = ((seed >> 16) % (Y - 2));
+
+    if (apple_x < 0) apple_x = -apple_x;
+    if (apple_y < 0) apple_y = -apple_y;
+
+    draw_block(apple_x, apple_y, GREEN);
+}
+
+int main() {
+
+    while (1) {
+
+        clear_screen();
+
+        int pos_x = 5;
+        int pos_y = 5;
+
+        int dx = 0;
+        int dy = 0;
+        
+        int prev_x = pos_x;
+        int prev_y = pos_y;
+
+        length = 0;
+        tail_x[0] = pos_x;
+        tail_y[0] = pos_y;
+
+        draw_block(pos_x, pos_y, BLUE);
+        spawn_apple();
+
+        int game_over = 0;
+
+        while (!game_over) {
+            
+            draw_block(pos_x, pos_y, BLACK);
+            
+            // Entrada
+            if (*DPadUp)    { dx = 0;  dy = -1; }
+            if (*DPadDo)    { dx = 0;  dy = 1; }
+            if (*DPadLe)    { dx = -1; dy = 0; }
+            if (*DPadRi)    { dx = 1;  dy = 0; }
+
+            if (dx == 0 && dy == 0) continue;
+            
+            // Guardar cabeza previa
+            prev_x = pos_x;
+            prev_y = pos_y;
+
+            // Mover cabeza
+            pos_x += dx;
+            pos_y += dy;
+
+            // Bordes
+            if (pos_x < 0 || pos_x > X - 2 ||
+                pos_y < 0 || pos_y > Y - 2)
+                game_over = 1;
+            
+            // Comer manzana
+            for (int j = 0; j < 2; j++)
+                for (int i = 0; i < 2; i++){
+                    if (LEDMat[(pos_y + j) * X + (pos_x + i)] == GREEN){
+                        spawn_apple();
+                        length+=2;
+                    }
+                    if (LEDMat[(pos_y + j) * X + (pos_x + i)] == RED)
+                        game_over = 1; 
+                }
+                   
+            // Mover cola
+            for (int i = length - 1; i > 0; i--) {
+                draw_block(tail_x[i], tail_y[i], BLACK);
+                tail_x[i] = tail_x[i - 1];
+                tail_y[i] = tail_y[i - 1];
+            }
+            tail_x[0] = prev_x;
+            tail_y[0] = prev_y;
+            
+            
+            // Dibujar cola
+            for (int i = 0; i < length; i++)
+                draw_block(tail_x[i], tail_y[i], RED);
+            
+            
+            // Dibujar cabeza
+            draw_block(pos_x, pos_y, BLUE);
+
+            for (int d = 0; d < 10000; d++);
+        }
+
+        // GAME OVER
+        clear_screen();
+
+        // Esperar switch 0 para reiniciar
+        while (!(*Switches & 1));
+        while ((*Switches & 1));
+    }
+
+    return 0;
+}
